@@ -1,35 +1,50 @@
 __author__ = 'Phil'
 
 import hashlib
+from flask import Flask, send_from_directory
 
-# Create a new account.
-desired_user = input("Enter a new user name: ")
-desired_password = input("Enter a desired password: ")
+app = Flask(__name__)
 
-user_base = {}
-encoded_salt = b"example"
+def test_log_in():
+    # Create a new account.
+    desired_user = input("Enter a new user name: ")
+    desired_password = input("Enter a desired password: ")
 
-encoded_pass = bytes(desired_password, encoding='UTF-8')
+    user_base = {}
+    encoded_salt = b"example"
 
-user_base[desired_user.lower()] = hashlib.sha256(encoded_pass + encoded_salt)
+    encoded_pass = bytes(desired_password, encoding='UTF-8')
 
-print()
+    user_base[desired_user.lower()] = hashlib.sha256(encoded_pass + encoded_salt)
 
-logged_in = False
+    print()
 
-while not logged_in:
-    print("--------LOGIN--------")
-    login_user = input("User Name: ")
-    login_pass = input("Password: ")
+    logged_in = False
 
-    encoded_pass = bytes(login_pass, encoding='UTF-8')
+    while not logged_in:
+        print("--------LOGIN--------")
+        login_user = input("User Name: ")
+        login_pass = input("Password: ")
 
-    try:
-        if hashlib.sha256(encoded_pass + encoded_salt).digest() == user_base[login_user].digest():
-            print("Logged in!!!")
-            logged_in = True
-        else:
-            print("Incorrect password")
+        encoded_pass = bytes(login_pass, encoding='UTF-8')
 
-    except KeyError:
-        print("User name not found...")
+        try:
+            if hashlib.sha256(encoded_pass + encoded_salt).digest() == user_base[login_user].digest():
+                print("Logged in!!!")
+                logged_in = True
+            else:
+                print("Incorrect password")
+
+        except KeyError:
+            print("User name not found...")
+
+@app.route('/')
+def index_page():
+    return "Hello World!"
+
+@app.route('/login')
+def login_page():
+    return send_from_directory(index.html)
+
+if __name__ == '__main__':
+    app.run()
