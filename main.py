@@ -1,9 +1,9 @@
 __author__ = 'Phil'
 
 import hashlib
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request, url_for, redirect
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
 
 def test_log_in():
     # Create a new account.
@@ -38,13 +38,10 @@ def test_log_in():
         except KeyError:
             print("User name not found...")
 
-@app.route('/')
-def index_page():
-    return "Hello World!"
 
-@app.route('/login')
-def login_page():
-    return send_from_directory(index.html)
+@app.route('/')
+def root():
+    return redirect(url_for('static', filename='index.html'))
 
 if __name__ == '__main__':
     app.run()
