@@ -1,47 +1,46 @@
 __author__ = 'Phil'
 
 import hashlib
-from flask import Flask, send_from_directory, request, url_for, redirect
+from flask import Flask, send_from_directory, request, url_for, redirect, render_template
 
 app = Flask(__name__, static_url_path='')
 
-def test_log_in():
-    # Create a new account.
-    desired_user = input("Enter a new user name: ")
-    desired_password = input("Enter a desired password: ")
+encoded_salt = b"example"
 
-    user_base = {}
-    encoded_salt = b"example"
+# TEST USERS, DO NOT INCLUDE IN PRODUCTION!!!!!!!!!!!!!!!!
+user_base = {'admin' : hashlib.sha256(b'password' + encoded_salt)}
 
-    encoded_pass = bytes(desired_password, encoding='UTF-8')
 
-    user_base[desired_user.lower()] = hashlib.sha256(encoded_pass + encoded_salt)
-
-    print()
-
-    logged_in = False
-
-    while not logged_in:
-        print("--------LOGIN--------")
-        login_user = input("User Name: ")
-        login_pass = input("Password: ")
-
-        encoded_pass = bytes(login_pass, encoding='UTF-8')
-
-        try:
-            if hashlib.sha256(encoded_pass + encoded_salt).digest() == user_base[login_user].digest():
-                print("Logged in!!!")
-                logged_in = True
-            else:
-                print("Incorrect password")
-
-        except KeyError:
-            print("User name not found...")
+def validate_login(username, password):
+    encoded_pass = bytes(password, encoding='UTF-8')
+    try:
+        if hashlib.sha256(encoded_pass + encoded_salt).digest() == user_base[username.lower()].digest():
+            return True
+        else:
+            return False
+    except KeyError:
+        return False
 
 
 @app.route('/')
 def root():
     return redirect(url_for('static', filename='index.html'))
+
+
+@app.route('/index_submit', methods=['POST', 'GET'])
+def login():
+    error = None
+    if request.method == 'POST':
+        if validate_login(request.form['username'], request.form['password']):
+            return succesful_login(request.form['username'])
+        else:
+            error = 'Invalid username/password'
+
+    return render_template('index.html', error=error)
+
+
+def succesful_login(username):
+    print(username + " has logged in!")
 
 if __name__ == '__main__':
     app.run()
