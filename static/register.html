@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Register an Account</title>
+	<link rel="stylesheet" href="normalize.css">
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<section class="loginform cf">
+		<form name="register" action="register_submit" method="post" accept-charset="utf-8">
+			<ul>
+				<li>
+					<label for="request_user">Desired User Name</label>
+					<input type="text" name="username" maxlength="30" placeholder="John_Doe" required>
+				</li>
+				<li>
+					<label for="request_password">Desired Password</label>
+					<input type="password" name="password" placeholder="password" required pattern=".{8,20}" required title="8 to 20 characters">
+                </li>
+                <li>
+					<label for="request_email">Email Address</label>
+					<input type="email" name="email" maxlength="30" placeholder="example@example.com" required>
+				</li>
+				<li>
+					<input type="submit" value="Register">
+				</li>
+			</ul>
+		</form>
+	</section>
+</body>
+</html>
