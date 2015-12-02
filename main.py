@@ -4,6 +4,7 @@ import hashlib
 import datetime
 import time
 import sqlite3
+import bcrypt
 from flask import Flask, request, url_for, redirect, render_template
 
 app = Flask(__name__, static_url_path='')
@@ -21,16 +22,21 @@ def write_log(message):
 
 def validate_login(attempted_username, attempted_password):
     encoded_pass = bytes(attempted_password, encoding='UTF-8')
-    hashed_pass = hashlib.sha256(encoded_pass + encoded_salt).hexdigest()
+#    hashed_pass = hashlib.sha256(encoded_pass + encoded_salt).hexdigest()
     database = sqlite3.connect('users.db', isolation_level=None)
     c = database.cursor()
-
     # Check if username with matching password exists in the database.
-    c.execute("SELECT * FROM users WHERE password = ? AND username = ?", (hashed_pass,attempted_username))
-    if c.fetchone():
-        # Successful login!
-        return True
-    else:
+    c.execute("SELECT password FROM users WHERE username = ?", (attempted_username,))
+    print("1")
+    try:
+        try_pass = c.fetchone()
+        try_pass = try_pass[0]
+        print(try_pass)
+        if bcrypt.hashpw(encoded_pass, try_pass) == try_pass:
+            return True
+        else:
+            return False
+    except IndexError:
         return False
 
 
@@ -39,8 +45,10 @@ def validate_registration(username, password, email):
     c = database.cursor()
     req_username = username.lower()
     req_email = email.lower()
+    salt = bcrypt.gensalt()
     encoded_pass = bytes(password, encoding='UTF-8')
-    hashed_pass = hashlib.sha256(encoded_pass + encoded_salt).hexdigest()
+#    print(salt)
+    hashed_pass = bcrypt.hashpw(encoded_pass, salt)
     print("Attempting to register user: " + req_username)
     # Check if username already exists in database
     c.execute("SELECT username FROM users WHERE username = ?", (req_username,))
