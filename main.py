@@ -21,6 +21,8 @@ SITE_URL = "http://127.0.0.1:5000/"
 SITE_EMAIL = "logallin3@gmail.com"
 SITE_PASSWORD = "blueberry3"
 
+verification_table = {}
+
 obj = None
 
 def current_time():
@@ -32,16 +34,40 @@ def write_log(message):
         log.write(current_time() + ' ' + message + '\n')
 
 
+def build_verification_table():
+    database = sqlite3.connect('users.db', isolation_level=None)
+    c = database.cursor()
+    c.execute("SELECT username,code FROM users WHERE verified = 0")
+    table = c.fetchall()
+    dict = {}
+    for i,e in enumerate(table):
+        dict[e[1]] = e[0]
+
+    database.commit()
+    database.close()
+    return dict
+
+
+def is_verified(user):
+    database = sqlite3.connect('users.db', isolation_level=None)
+    c = database.cursor()
+    c.execute("SELECT verified FROM users WHERE username = ?", (user,))
+    verification = c.fetchone()
+    verification = verification[0]
+    database.commit()
+    database.close()
+    if verification == 0:
+        return False
+    else:
+        return True
+
+
 def send_email(target, code):
-    message = "Thank you for registering, please click this link to verify your account: " + SITE_URL + "/" + code
+    message = "Thank you for registering, please click this link to verify your account: " + SITE_URL + "validate/" + code
     server = smtplib.SMTP('smtp.gmail.com:587')
-    print('1')
     server.ehlo()
-    print('2')
     server.starttls()
-    print('3')
     server.login(SITE_EMAIL, SITE_PASSWORD)
-    print('4')
     msg = "\r\n".join([
             "From: " + SITE_EMAIL,
             "To: " + target,
@@ -49,9 +75,7 @@ def send_email(target, code):
             "",
             message
             ])
-    print('5')
     server.sendmail(SITE_EMAIL, target, msg)
-    print('6')
     server.quit()
 
 
@@ -136,15 +160,16 @@ def validate_registration(username, password, email, secret):
 
     # User should be good to go, insert into table.
     print("Adding user to database...")
-    c.execute("INSERT INTO users VALUES (?,?,?,?)", (req_username,req_email,hashed_pass,enc_secret))
+    validate_code = ''.join(random.choice(string.ascii_uppercase) for i in range(16))
+    verification_table[validate_code] = req_username
+    c.execute("INSERT INTO users VALUES (?,?,?,?,?,?)", (req_username,req_email,hashed_pass,enc_secret,0,validate_code))
     database.commit()
     database.close()
     write_log("Added user '" + req_username + "' to the database")
 
     # Send email to user.
-    validate = ''.join(random.choice(string.ascii_uppercase) for i in range(16))
     print("Sending email to " + req_email)
-    send_email(req_email, validate)
+    send_email(req_email, validate_code)
     print("Email success!")
 
     return True
@@ -161,16 +186,23 @@ def login():
         attempted_user = request.form['username']
         attempted_password = request.form['password']
         if validate_login(attempted_user, attempted_password):
-            # Retrieve the secret.
-            secret = unhide_secret(attempted_user)
-            print("Successful login from user '" + attempted_user + "'")
-            write_log("Successful login from user '" + attempted_user + "'")
-            return render_template('hello.html', name=attempted_user, secret=secret)
+            # Check that the user is verified
+            if is_verified(attempted_user):
+                # Retrieve the secret.
+                secret = unhide_secret(attempted_user)
+                print("Successful login from user '" + attempted_user + "'")
+                write_log("Successful login from user '" + attempted_user + "'")
+                return render_template('hello.html', name=attempted_user, secret=secret)
+            # User is not verified!
+            else:
+                print("Attempted login from unverified user: " + attempted_user)
+                write_log(print("Attempted login from unverified user: " + attempted_user))
+                return render_template('invalid.html', error="Unverified User")
         else:
             print("Invalid login from user '" + attempted_user + "'")
             write_log("Invalid login from user '" + attempted_user + "'")
 
-    return render_template('invalid.html', name=attempted_user)
+    return render_template('invalid.html', error="Invalid Login")
 
 
 @app.route('/register_submit', methods=['POST', 'GET'])
@@ -185,6 +217,23 @@ def register():
     return render_template('invalid.html', name=request.form['username'])
 
 
+@app.route('/validate/<key>')
+def verify(key):
+    user = verification_table[key]
+    print("1")
+    database = sqlite3.connect('users.db', isolation_level=None)
+    print("1")
+    c = database.cursor()
+    print("1")
+    c.execute("UPDATE users SET verified=1 WHERE username = ?", (user,))
+    print("1")
+    database.commit()
+    database.close()
+    return redirect(url_for('static', filename='validated.html'))
+
+
 if __name__ == '__main__':
-    AES_KEY = input("Enter AES key: ").encode('utf-8')
+#    AES_KEY = input("Enter AES key: ").encode('utf-8')
+    AES_KEY = "quickbrownanimal"
+    verification_table = build_verification_table()
     app.run()
