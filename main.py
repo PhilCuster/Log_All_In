@@ -8,6 +8,7 @@ import base64
 import smtplib
 import random
 import string
+import threading
 from Crypto.Cipher import AES
 from Crypto import Random
 from flask import Flask, request, url_for, redirect, render_template
@@ -17,13 +18,38 @@ app = Flask(__name__, static_url_path='')
 # Temporary storage for AES encryption key
 AES_KEY = None
 
+# Number of minutes a user has to verify before account deletion.
+VERIFY_TIME = 30
+
 SITE_URL = "http://127.0.0.1:5000/"
 SITE_EMAIL = "logallin3@gmail.com"
 SITE_PASSWORD = "blueberry3"
 
 verification_table = {}
+timer_table = {}
 
 obj = None
+
+
+def check_timer():
+    threading.Timer(30, check_timer).start()
+    database = sqlite3.connect('users.db', isolation_level=None)
+    c = database.cursor()
+    print("Checking for un-verified users...")
+    delete_list = []
+    for key in timer_table:
+        timer_table[key] += 1
+        if timer_table[key] > (VERIFY_TIME * 2):
+            c.execute("DELETE FROM users WHERE username=?", (key,))
+            print("User '" + key + "' failed to verify in time and has been deleted...")
+            write_log("User '" + key + "' failed to verify in time and has been deleted...")
+            delete_list.append(key)
+    for item in delete_list:
+        del timer_table[item]
+    database.commit()
+    database.close()
+    return True
+
 
 def current_time():
     return datetime.datetime.fromtimestamp(time.time()).strftime('[%Y-%m-%d %H:%M:%S]')
@@ -35,6 +61,7 @@ def write_log(message):
 
 
 def build_verification_table():
+    print("Build verification table...")
     database = sqlite3.connect('users.db', isolation_level=None)
     c = database.cursor()
     c.execute("SELECT username,code FROM users WHERE verified = 0")
@@ -45,7 +72,17 @@ def build_verification_table():
 
     database.commit()
     database.close()
+    print("Verification table complete!")
     return dict
+
+
+def build_timer_table(dict):
+    print("Building timing table...")
+    dict2 = {}
+    for key, value in dict.items():
+        dict2[value] = 0
+    print("Timing table complete!")
+    return dict2
 
 
 def is_verified(user):
@@ -63,7 +100,7 @@ def is_verified(user):
 
 
 def send_email(target, code):
-    message = "Thank you for registering, please click this link to verify your account: " + SITE_URL + "validate/" + code
+    message = "Thank you for registering, please click this link to verify your account: " + SITE_URL + "validate/" + code + " \n\nNote that you must verify in the next 30 minutes or you will have to re-create your account!"
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.ehlo()
     server.starttls()
@@ -121,7 +158,6 @@ def validate_login(attempted_username, attempted_password):
     try:
         try_pass = c.fetchone()
         try_pass = try_pass[0]
-        print(try_pass)
         if bcrypt.hashpw(encoded_pass, try_pass) == try_pass:
             return True
         else:
@@ -162,6 +198,7 @@ def validate_registration(username, password, email, secret):
     print("Adding user to database...")
     validate_code = ''.join(random.choice(string.ascii_uppercase) for i in range(16))
     verification_table[validate_code] = req_username
+    timer_table[req_username] = 0
     c.execute("INSERT INTO users VALUES (?,?,?,?,?,?)", (req_username,req_email,hashed_pass,enc_secret,0,validate_code))
     database.commit()
     database.close()
@@ -220,15 +257,13 @@ def register():
 @app.route('/validate/<key>')
 def verify(key):
     user = verification_table[key]
-    print("1")
     database = sqlite3.connect('users.db', isolation_level=None)
-    print("1")
     c = database.cursor()
-    print("1")
     c.execute("UPDATE users SET verified=1 WHERE username = ?", (user,))
-    print("1")
     database.commit()
     database.close()
+    del timer_table[user]
+    del verification_table[key]
     return redirect(url_for('static', filename='validated.html'))
 
 
@@ -236,4 +271,6 @@ if __name__ == '__main__':
 #    AES_KEY = input("Enter AES key: ").encode('utf-8')
     AES_KEY = "quickbrownanimal"
     verification_table = build_verification_table()
+    timer_table = build_timer_table(verification_table)
+    check_timer()
     app.run()
