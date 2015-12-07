@@ -21,7 +21,7 @@ AES_KEY = None
 # Number of minutes a user has to verify before account deletion.
 VERIFY_TIME = 30
 
-SITE_URL = "http://127.0.0.1:5000/"
+SITE_URL = "https://127.0.0.1:5000/"
 SITE_EMAIL = "logallin3@gmail.com"
 SITE_PASSWORD = "blueberry3"
 
