@@ -268,7 +268,7 @@ def verify(key):
 
 
 if __name__ == '__main__':
-    AES_KEY = "quickbrownanimal"
+    AES_KEY = input("Enter AES Key: ")
     verification_table = build_verification_table()
     timer_table = build_timer_table(verification_table)
     check_timer()
