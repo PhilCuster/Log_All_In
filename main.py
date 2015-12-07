@@ -268,9 +268,8 @@ def verify(key):
 
 
 if __name__ == '__main__':
-#    AES_KEY = input("Enter AES key: ").encode('utf-8')
     AES_KEY = "quickbrownanimal"
     verification_table = build_verification_table()
     timer_table = build_timer_table(verification_table)
     check_timer()
-    app.run()
+    app.run(debug=False, ssl_context='adhoc')
